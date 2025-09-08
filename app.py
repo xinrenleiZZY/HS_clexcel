@@ -5,6 +5,7 @@ import uuid
 import time
 from io import BytesIO
 import json
+import sys
 
 # 确保临时目录存在
 os.makedirs('temp_files', exist_ok=True)
@@ -37,55 +38,67 @@ def process_file(uploaded_file1, uploaded_file2, month_column):
         with open(schedule_path, "wb") as f:
             f.write(uploaded_file2.getbuffer())
 
-        # 定义要执行的处理脚本
+        # 定义脚本及对应的参数
         scripts = [
-            "0.py",  # 第一个处理脚本
-            "1.py"  # 第二个处理脚本
+            {
+                "path": "0.py",
+                "args": [original_path, schedule_path, month_column]  # 0.py需要的参数
+            },
+            {
+                "path": "1.py",
+                "args": []  # 1.py的参数将在第一个脚本执行后生成
+            }
         ]
 
-        # 执行第一个脚本（修复参数顺序，与0.py的参数要求匹配）
+        # 执行第一个脚本（0.py）
+        script0_path = os.path.join("modules", scripts[0]["path"])
         intermediate_path = os.path.join(TEMP_DIR, f"处理月报_{uuid.uuid4()}.xlsx")
-        result1 = subprocess.run(
-            ["python", os.path.join("modules", scripts[0]), 
-             original_path, schedule_path, month_column, intermediate_path],  # 调整参数顺序
-            capture_output=True,
-            text=True
-        )
-        if result1.returncode != 0:
-            return {"status": "error", "error": 
-                    f"0.py执行失败（返回码：{result1.returncode}）\n"
-                    f"标准输出：{result1.stdout}\n"
-                    f"错误输出：{result1.stderr}"}
+        # 完整参数：[Python解释器, 脚本路径, 输入文件, 班次文件, 月份列, 中间输出文件]
+        script0_args = [sys.executable, script0_path] + scripts[0]["args"] + [intermediate_path]
         
+        result1 = subprocess.run(
+            script0_args,
+            capture_output=True,
+            text=True,
+            check=True  # 启用检查，返回非0状态码时抛出异常
+        )
+
         # 检查中间文件是否生成
         if not os.path.exists(intermediate_path):
             return {"status": "error", "error": f"0.py未生成中间文件: {intermediate_path}"}
 
-        # 执行第二个脚本
+        # 执行第二个脚本（1.py）
+        script1_path = os.path.join("modules", scripts[1]["path"])
         final_path = os.path.join(TEMP_DIR, f"{month_column}原始数据.xlsx")
+        # 完整参数：[Python解释器, 脚本路径, 中间文件, 最终输出文件]
+        script1_args = [sys.executable, script1_path, intermediate_path, final_path]
+        
         result2 = subprocess.run(
-            ["python", os.path.join("modules", scripts[1]), intermediate_path, final_path],
+            script1_args,
             capture_output=True,
-            text=True
+            text=True,
+            check=True  # 启用检查，返回非0状态码时抛出异常
         )
-        if result2.returncode != 0:
-            return {"status": "error", "error": 
-                    f"1.py执行失败（返回码：{result2.returncode}）\n"
-                    f"标准输出：{result2.stdout}\n"
-                    f"错误输出：{result2.stderr}"}
 
         # 检查最终文件是否生成
         if not os.path.exists(final_path):
             raise FileNotFoundError(f"1.py未生成最终文件: {final_path}")
-
-        # 生成文件ID并存储路径
-        file_id = str(uuid.uuid4())
-        processed_files[file_id] = final_path
-
+        
         print(f"生成的文件路径: {final_path}")
         print(f"文件是否存在: {os.path.exists(final_path)}")
+        # 存储结果并返回
+        file_id = str(uuid.uuid4())
+        processed_files[file_id] = final_path
         return {"status": "success", "file_id": file_id}
        
+
+
+    except subprocess.CalledProcessError as e:
+        # 捕获脚本执行失败的异常（返回码非0）
+        return {"status": "error", "error": 
+                f"脚本执行失败（返回码：{e.returncode}）\n"
+                f"命令：{' '.join(e.cmd)}\n"
+                f"错误输出：{e.stderr}"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
