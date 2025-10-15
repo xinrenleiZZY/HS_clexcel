@@ -47,7 +47,16 @@ def replace_excel_content(input_file, output_file):
             r'地点异常.*?;',
             r'\(补卡\)-',
             r'正常\(管理员校准、补卡\)-',
-            r'正常\(管理员校准\)-'
+            r'正常\(休息\)',
+            r'正常\(管理员校准\)-',
+            r'迟到\s*[\d.]*\s*分钟-?;',
+            r'早退\s*[\d.]*\s*分钟-?;',
+            r'旷工\s*[\d.]*\s*分钟-?;',
+        ]
+        patterns_to_replace2 = [
+            r'迟到\s*[\d.]*\s*分钟-?',
+            r'早退\s*[\d.]*\s*分钟-?',
+            r'旷工\s*[\d.]*\s*分钟-?',
         ]
 
         # 处理每个工作表
@@ -77,6 +86,9 @@ def replace_excel_content(input_file, output_file):
                         # 应用所有替换模式
                         for pattern in patterns_to_replace:
                             cell_text = re.sub(pattern, '', cell_text)
+                        # 应用所有替换模式
+                        for pattern in patterns_to_replace2:
+                            cell_text = re.sub(pattern, ';', cell_text)
 
                         # 最终清理
                         cell_text = cell_text.strip()
