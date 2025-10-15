@@ -48,6 +48,7 @@ def replace_excel_content(input_file, output_file):
             r'\(补卡\)-',
             r'正常\(管理员校准、补卡\)-',
             r'正常\(休息\)',
+            r'正常（休息）'
             r'正常\(管理员校准\)-',
             r'迟到\s*[\d.]*\s*分钟-?;',
             r'早退\s*[\d.]*\s*分钟-?;',
