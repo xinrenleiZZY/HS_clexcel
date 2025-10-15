@@ -76,7 +76,7 @@ def process_excel(input_file, schedule_file, output_file, month_column="部门")
 
                     # 保留第一列和第27列及以后
                     if len(df.columns) >= 27:
-                        columns_to_keep = [0] + list(range(26, len(df.columns)))
+                        columns_to_keep = [0] + list(range(46, len(df.columns)))
                         df = df.iloc[:, columns_to_keep]
 
                         # 设置表头
